@@ -242,6 +242,43 @@
   .addendum{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 10px;margin-top:8px;border-radius:0 8px 8px 0;font-size:.84rem}
   .addendum .nr-meta{color:var(--warn)}
 
+  /* ---------- 기능 4: 투약 / I·O ---------- */
+  .io-form{display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.2fr auto;gap:12px;align-items:end}
+  .io-balance{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  .io-stat{border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;background:#fff}
+  .io-stat .lbl{font-size:.78rem;color:var(--ink-3);margin-bottom:4px}
+  .io-stat .val{font-family:"JetBrains Mono",monospace;font-size:1.6rem;font-weight:700}
+  .io-stat.intake{background:var(--info-bg);border-color:#BFDBFE}
+  .io-stat.intake .val{color:var(--info)}
+  .io-stat.output{background:#FFF7ED;border-color:#FED7AA}
+  .io-stat.output .val{color:#C2410C}
+  .io-stat.balance{background:var(--green-50);border-color:var(--green-100)}
+  .io-stat.balance .val{color:var(--green-800)}
+  .io-stat.balance .val.neg{color:var(--danger)}
+
+  /* ---------- 기능 5: 검색 / 필터 ---------- */
+  .search-bar{display:grid;grid-template-columns:1fr 1fr 1fr 2fr auto;gap:12px;align-items:end}
+  .search-summary{font-size:.85rem;color:var(--ink-2);margin:14px 0 8px;padding:10px 12px;background:var(--green-50);border:1px solid var(--green-100);border-radius:9px}
+  .result-row{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+  .result-row .rtype{flex:0 0 auto;font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:6px}
+  .rtype.vital{background:var(--green-100);color:var(--green-900)}
+  .rtype.note{background:#E0E7FF;color:#3730A3}
+  .rtype.med{background:#FCE7F3;color:#9D174D}
+  .rtype.io{background:var(--info-bg);color:var(--info)}
+  .result-row .rbody{flex:1 1 auto;font-size:.85rem}
+  .result-row .rtime{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink-3)}
+  mark{background:#FEF08A;color:inherit;border-radius:3px;padding:0 2px}
+
+  /* ---------- 기능 6: 감사추적 ---------- */
+  .audit-controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
+  .audit-log{max-height:380px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .audit-item{display:grid;grid-template-columns:auto auto 1fr;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.82rem;align-items:baseline}
+  .audit-item:last-child{border-bottom:none}
+  .audit-item .a-ts{font-family:"JetBrains Mono",monospace;font-size:.74rem;color:var(--ink-3);white-space:nowrap}
+  .audit-item .a-act{font-weight:600;color:var(--green-800);white-space:nowrap}
+  .audit-item .a-detail{color:var(--ink-2)}
+  .audit-item .a-who{color:var(--ink-3);font-size:.76rem}
+
   /* ---------- 토스트 ---------- */
   #toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
   .toast{
@@ -269,10 +306,13 @@
     .patient-grid{grid-template-columns:1fr}
     .vital-grid{grid-template-columns:repeat(3,1fr)}
     .form-grid-2,.nanda-compare{grid-template-columns:1fr}
+    .io-form,.search-bar{grid-template-columns:1fr 1fr}
     .header-title strong{font-size:1rem}
   }
   @media (max-width:520px){
     .vital-grid{grid-template-columns:repeat(2,1fr)}
+    .io-form,.search-bar{grid-template-columns:1fr}
+    .io-balance{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -452,10 +492,138 @@
       <div id="noteList"></div>
     </div>
 
-    <div class="edu" style="margin-bottom:0">
-      <span class="ic">🧭</span>
-      <div>다음 단계(2차)에서는 <b>투약·I/O 입력</b>, <b>기록 검색·필터</b>, <b>감사추적(Audit Trail) 패널</b>이 추가됩니다.
-      지금까지 입력한 데이터와 감사로그는 그대로 누적되어 다음 기능에서 활용됩니다.</div>
+    <!-- ----------------------------------------------------------------
+         기능 4 — 투약·I/O 구조화 입력 (자동 합계 / 24시간 I/O 균형)
+         ---------------------------------------------------------------- -->
+    <div class="card">
+      <div class="section-title"><span class="step">4</span><h2>투약 · 섭취/배설(I/O) 기록</h2></div>
+      <p class="card-sub">구조화 입력이므로 컴퓨터가 <b>자동으로 합계와 I/O 균형</b>을 계산합니다. (자유서술이라면 사람이 일일이 더해야 합니다.)</p>
+
+      <!-- 4-1. 투약기록 -->
+      <h3 style="font-size:1rem;margin-top:6px">💊 투약기록</h3>
+      <div class="io-form">
+        <label class="field">약명
+          <input id="m_name" type="text" placeholder="예: Acetaminophen" />
+        </label>
+        <label class="field">용량 <span class="unit">예: 500mg</span>
+          <input id="m_dose" type="text" placeholder="500mg" />
+        </label>
+        <label class="field">경로
+          <select id="m_route">
+            <option value="PO">PO (경구)</option>
+            <option value="IV">IV (정맥)</option>
+            <option value="IM">IM (근육)</option>
+            <option value="SC">SC (피하)</option>
+            <option value="INH">INH (흡입)</option>
+            <option value="PR">PR (직장)</option>
+            <option value="TOP">TOP (국소)</option>
+          </select>
+        </label>
+        <label class="field">투여시간
+          <input id="m_time" type="text" placeholder="비우면 현재시각" />
+        </label>
+        <div><button class="btn" style="width:100%" onclick="saveMed()">＋ 투약 저장</button></div>
+      </div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>기록시각</th><th>약명</th><th>용량</th><th>경로</th><th>투여시간</th><th>작성자</th></tr></thead>
+          <tbody id="medTbody"></tbody>
+        </table>
+      </div>
+
+      <!-- 4-2. I/O 기록 -->
+      <h3 style="font-size:1rem;margin-top:22px">💧 섭취/배설량 (I/O)</h3>
+      <div class="io-form">
+        <label class="field">구분
+          <select id="io_kind">
+            <option value="IN">섭취 (Intake)</option>
+            <option value="OUT">배설 (Output)</option>
+          </select>
+        </label>
+        <label class="field">유형
+          <select id="io_type"></select>
+        </label>
+        <label class="field">용량 <span class="unit">mL</span>
+          <input id="io_amount" class="num-input" type="number" inputmode="numeric" placeholder="200" />
+        </label>
+        <label class="field">시간
+          <input id="io_time" type="text" placeholder="비우면 현재시각" />
+        </label>
+        <div><button class="btn" style="width:100%" onclick="saveIO()">＋ I/O 저장</button></div>
+      </div>
+
+      <!-- 24시간 I/O 균형 요약 (자동 계산) -->
+      <div class="io-balance" id="ioBalance"></div>
+
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>기록시각</th><th>구분</th><th>유형</th><th>용량(mL)</th><th>작성자</th></tr></thead>
+          <tbody id="ioTbody"></tbody>
+        </table>
+      </div>
+      <p class="hint">※ 최근 24시간 기준으로 섭취·배설 합계와 균형(Balance = 섭취 − 배설)을 자동 계산합니다.</p>
+    </div>
+
+    <!-- ----------------------------------------------------------------
+         기능 5 — 기록 검색·필터 (구조화 데이터의 이점 시연)
+         ---------------------------------------------------------------- -->
+    <div class="card">
+      <div class="section-title"><span class="step">5</span><h2>기록 검색 · 필터</h2></div>
+      <p class="card-sub">날짜·기록유형·키워드로 누적된 모든 기록을 즉시 검색합니다.</p>
+
+      <div class="edu">
+        <span class="ic">🔎</span>
+        <div><b>이것이 구조화 데이터의 힘입니다.</b> 만약 모든 기록이 <b>자유서술(줄글)뿐</b>이었다면,
+        “SpO₂ 이상치만”, “NANDA 00132 통증 기록만”, “특정 약 투약 이력만” 같은 검색은
+        사실상 불가능합니다. 표준용어·정형 필드가 있기에 검색·통계·추세분석이 가능합니다.</div>
+      </div>
+
+      <div class="search-bar">
+        <label class="field">시작일
+          <input id="f_from" type="date" />
+        </label>
+        <label class="field">종료일
+          <input id="f_to" type="date" />
+        </label>
+        <label class="field">기록유형
+          <select id="f_type">
+            <option value="">전체</option>
+            <option value="vital">활력징후</option>
+            <option value="note">간호기록</option>
+            <option value="med">투약</option>
+            <option value="io">I/O</option>
+          </select>
+        </label>
+        <label class="field">키워드 <span class="unit">약명·NANDA코드·서술 등</span>
+          <input id="f_kw" type="text" placeholder="예: 통증 / 00132 / Acetaminophen / 88" onkeydown="if(event.key==='Enter')runSearch()" />
+        </label>
+        <div style="display:flex;gap:8px;align-items:end">
+          <button class="btn" onclick="runSearch()">검색</button>
+          <button class="btn btn-outline" onclick="resetSearch()">초기화</button>
+        </div>
+      </div>
+
+      <div id="searchSummary" class="search-summary"></div>
+      <div id="searchResults"></div>
+    </div>
+
+    <!-- ----------------------------------------------------------------
+         기능 6 — 감사추적(Audit Trail) 패널
+         ---------------------------------------------------------------- -->
+    <div class="card" style="margin-bottom:0">
+      <div class="section-title"><span class="step">6</span><h2>감사추적 (Audit Trail)</h2></div>
+      <p class="card-sub">모든 입력·조회·수정 시도가 <b>누가 / 언제 / 무엇을</b> 했는지 시간순으로 기록됩니다. 임의 삭제·수정이 불가능해 기록의 법적 신뢰성을 보장합니다.</p>
+
+      <div class="audit-controls">
+        <label class="field" style="max-width:260px">행위 유형 필터
+          <select id="a_filter" onchange="renderAudit()"><option value="">전체 행위</option></select>
+        </label>
+        <span class="muted" id="auditCount" style="font-size:.82rem;align-self:end"></span>
+        <span style="flex:1 1 auto"></span>
+        <button class="btn btn-outline btn-sm" onclick="exportAudit()" style="align-self:end">로그 내보내기 (JSON)</button>
+      </div>
+
+      <div class="audit-log" id="auditLog"></div>
     </div>
   </section>
 </main>
@@ -489,6 +657,8 @@ let state = Object.assign({
   currentPatient: null,
   vitals: {},   // { patientId: [ {ts, sbp, dbp, hr, rr, temp, spo2, pain}, ... ] }
   notes: {},    // { patientId: [ {id, ts, author, format, nandaCode, nandaLabel, nandaFree, fields, addenda:[]}, ... ] }
+  meds: {},     // { patientId: [ {ts, name, dose, route, giveTime, author}, ... ] }
+  io: {},       // { patientId: [ {ts, kind:'IN'|'OUT', type, amount, author}, ... ] }
   audit: []     // [ {ts, who, action, detail} ]
 }, db.load());
 
@@ -662,6 +832,8 @@ function selectPatient(id){
   state.currentPatient = id;
   if(!state.vitals[id]) state.vitals[id] = [];
   if(!state.notes[id])  state.notes[id]  = [];
+  if(!state.meds[id])   state.meds[id]   = [];
+  if(!state.io[id])     state.io[id]     = [];
   persist();
   audit("환자 선택", `환자 ${id} 차트 열람`);
   enterChart();
@@ -683,9 +855,17 @@ function enterChart(){
   document.getElementById("bnMeta").textContent = p.meta;
   document.getElementById("bnHx").textContent = p.hx;
 
+  // 현재 환자에 누락된 배열 보정 (이전 버전 데이터 호환)
+  ["meds","io"].forEach(k=>{ if(!state[k][p.id]) state[k][p.id]=[]; });
+
   renderVitalTable();
   renderTrend();
   renderNotes();
+  renderMeds();
+  renderIO();
+  resetSearch();
+  populateAuditFilter();
+  renderAudit();
   showScreen("screen-chart");
 }
 
@@ -1031,13 +1211,264 @@ function escapeHtml(s){
 }
 
 /* ============================================================================
-   9) 초기화 (앱 시작)
+   9) 기능 4 — 투약 · 섭취/배설(I/O) 구조화 입력
+   ----------------------------------------------------------------------------
+   구조화 데이터이므로 자동 합계·24시간 I/O 균형(Balance) 계산이 가능합니다.
+   ============================================================================ */
+
+/* 4-1. 투약기록 */
+function saveMed(){
+  const name = document.getElementById("m_name").value.trim();
+  const dose = document.getElementById("m_dose").value.trim();
+  const route = document.getElementById("m_route").value;
+  let giveTime = document.getElementById("m_time").value.trim();
+  if(!name){ toast("약명을 입력하세요.", "warn"); return; }
+  if(!giveTime) giveTime = fmtHM(nowISO()); // 비우면 현재 시각
+
+  state.meds[state.currentPatient].push({
+    ts: nowISO(), name, dose, route, giveTime, author: state.author
+  });
+  persist();
+  audit("투약 기록", `${name} ${dose} ${route} @${giveTime}`);
+  document.getElementById("m_name").value = "";
+  document.getElementById("m_dose").value = "";
+  document.getElementById("m_time").value = "";
+  renderMeds();
+  toast("투약기록이 저장되었습니다.");
+}
+
+const ROUTE_LABEL = {PO:"PO 경구",IV:"IV 정맥",IM:"IM 근육",SC:"SC 피하",INH:"INH 흡입",PR:"PR 직장",TOP:"TOP 국소"};
+
+function renderMeds(){
+  const tbody = document.getElementById("medTbody");
+  const list = (state.meds[state.currentPatient]||[]).slice().reverse();
+  if(list.length===0){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">투약기록이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(m=>`<tr>
+    <td class="mono" style="font-size:.78rem">${fmtTime(m.ts)}</td>
+    <td>${escapeHtml(m.name)}</td>
+    <td class="mono">${escapeHtml(m.dose||"-")}</td>
+    <td>${ROUTE_LABEL[m.route]||m.route}</td>
+    <td class="mono">${escapeHtml(m.giveTime||"-")}</td>
+    <td style="font-size:.8rem">${escapeHtml(m.author)}</td>
+  </tr>`).join("");
+}
+
+/* 4-2. I/O — 구분(섭취/배설)에 따라 유형 옵션을 동적으로 변경 */
+const IO_TYPES = {
+  IN:  ["경구 수분","정맥수액(IV)","경관영양","기타 섭취"],
+  OUT: ["소변","구토","배액(Drain)","대변(추정)","기타 배설"]
+};
+function refreshIOTypeOptions(){
+  const kind = document.getElementById("io_kind").value;
+  const sel = document.getElementById("io_type");
+  sel.innerHTML = IO_TYPES[kind].map(t=>`<option value="${t}">${t}</option>`).join("");
+}
+
+function saveIO(){
+  const kind = document.getElementById("io_kind").value;
+  const type = document.getElementById("io_type").value;
+  const amount = Number(document.getElementById("io_amount").value);
+  let time = document.getElementById("io_time").value.trim();
+  if(!amount || amount<=0 || isNaN(amount)){ toast("용량(mL)을 0보다 큰 숫자로 입력하세요.", "warn"); return; }
+  if(amount > 5000){ toast("용량이 비정상적으로 큽니다(>5000mL). 확인하세요.", "warn"); return; }
+
+  state.io[state.currentPatient].push({
+    ts: nowISO(), kind, type, amount,
+    displayTime: time || fmtHM(nowISO()), author: state.author
+  });
+  persist();
+  audit("I/O 기록", `${kind==="IN"?"섭취":"배설"} · ${type} · ${amount}mL`);
+  document.getElementById("io_amount").value = "";
+  document.getElementById("io_time").value = "";
+  renderIO();
+  toast("I/O 기록이 저장되었습니다.");
+}
+
+function renderIO(){
+  const list = (state.io[state.currentPatient]||[]);
+
+  // 24시간 균형 자동 계산 (현재 시각 기준 최근 24시간)
+  const cutoff = Date.now() - 24*60*60*1000;
+  let intake=0, output=0;
+  list.forEach(r=>{
+    if(new Date(r.ts).getTime() >= cutoff){
+      if(r.kind==="IN") intake += r.amount; else output += r.amount;
+    }
+  });
+  const balance = intake - output;
+  const balCls = balance < 0 ? "val neg" : "val";
+  document.getElementById("ioBalance").innerHTML = `
+    <div class="io-stat intake"><div class="lbl">24h 섭취 (Intake)</div><div class="val">${intake.toLocaleString()} <span style="font-size:.8rem">mL</span></div></div>
+    <div class="io-stat output"><div class="lbl">24h 배설 (Output)</div><div class="val">${output.toLocaleString()} <span style="font-size:.8rem">mL</span></div></div>
+    <div class="io-stat balance"><div class="lbl">균형 Balance (섭취−배설)</div><div class="${balCls}">${balance>0?"+":""}${balance.toLocaleString()} <span style="font-size:.8rem">mL</span></div></div>`;
+
+  const tbody = document.getElementById("ioTbody");
+  const rev = list.slice().reverse();
+  if(rev.length===0){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">I/O 기록이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rev.map(r=>{
+    const tag = r.kind==="IN" ? `<span class="pill" style="background:var(--info-bg);color:var(--info)">섭취</span>`
+                              : `<span class="pill" style="background:#FFF7ED;color:#C2410C">배설</span>`;
+    return `<tr>
+      <td class="mono" style="font-size:.78rem">${fmtTime(r.ts)}</td>
+      <td>${tag}</td>
+      <td>${escapeHtml(r.type)}</td>
+      <td class="num">${r.amount.toLocaleString()}</td>
+      <td style="font-size:.8rem">${escapeHtml(r.author)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ============================================================================
+   10) 기능 5 — 기록 검색 · 필터 (구조화 데이터의 이점 시연)
+   ----------------------------------------------------------------------------
+   모든 종류의 기록을 하나의 통합 레코드 리스트로 모은 뒤
+   날짜·유형·키워드로 필터링합니다. 구조화 필드 덕분에 가능한 기능입니다.
+   ============================================================================ */
+
+/* 환자의 모든 기록을 검색용 통합 리스트로 평탄화 */
+function collectRecords(){
+  const pid = state.currentPatient;
+  const out = [];
+
+  (state.vitals[pid]||[]).forEach(v=>{
+    const worst = judgeRecord(v);
+    const text = `BP ${v.sbp??"-"}/${v.dbp??"-"} HR ${v.hr??"-"} RR ${v.rr??"-"} Temp ${v.temp??"-"} SpO2 ${v.spo2??"-"} 통증 ${v.pain??"-"} ${worst==="danger"?"이상치":worst==="warn"?"주의":"정상"}`;
+    out.push({type:"vital", ts:v.ts, label:"활력징후", text, abn:worst});
+  });
+  (state.notes[pid]||[]).forEach(n=>{
+    const fieldText = Object.values(n.fields||{}).filter(Boolean).join(" ");
+    const nandaText = `${n.nandaCode?("["+n.nandaCode+"] "+n.nandaLabel):""} ${n.nandaFree||""}`;
+    out.push({type:"note", ts:n.ts, label:`간호기록 · ${FMT_LABEL[n.format]}`, text:`${nandaText} ${fieldText}`.trim()});
+  });
+  (state.meds[pid]||[]).forEach(m=>{
+    out.push({type:"med", ts:m.ts, label:"투약", text:`${m.name} ${m.dose||""} ${ROUTE_LABEL[m.route]||m.route} @${m.giveTime||""}`});
+  });
+  (state.io[pid]||[]).forEach(r=>{
+    out.push({type:"io", ts:r.ts, label:"I/O", text:`${r.kind==="IN"?"섭취":"배설"} ${r.type} ${r.amount}mL`});
+  });
+
+  return out.sort((a,b)=> new Date(b.ts) - new Date(a.ts)); // 최신순
+}
+
+function runSearch(){
+  const from = document.getElementById("f_from").value;
+  const to   = document.getElementById("f_to").value;
+  const type = document.getElementById("f_type").value;
+  const kw   = document.getElementById("f_kw").value.trim().toLowerCase();
+
+  let records = collectRecords();
+  const total = records.length;
+
+  if(type) records = records.filter(r=>r.type===type);
+  if(from){ const t = new Date(from+"T00:00:00").getTime(); records = records.filter(r=> new Date(r.ts).getTime() >= t); }
+  if(to){   const t = new Date(to+"T23:59:59").getTime();   records = records.filter(r=> new Date(r.ts).getTime() <= t); }
+  if(kw)    records = records.filter(r=> (r.label+" "+r.text).toLowerCase().includes(kw));
+
+  audit("기록 검색", `유형:${type||"전체"} 키워드:"${kw||""}" 기간:${from||"~"}~${to||"~"} → ${records.length}/${total}건`);
+
+  const summary = document.getElementById("searchSummary");
+  summary.innerHTML = `전체 ${total}건 중 <b>${records.length}건</b> 검색됨` +
+    (kw?` · 키워드 “${escapeHtml(kw)}”`:"") + (type?` · 유형:${escapeHtml(document.getElementById("f_type").selectedOptions[0].text)}`:"") +
+    `　<span class="muted">— 이런 즉시 검색은 <b>구조화 데이터이기에</b> 가능합니다.</span>`;
+
+  const box = document.getElementById("searchResults");
+  if(records.length===0){
+    box.innerHTML = `<div class="empty" style="border:1px dashed var(--line);border-radius:10px">조건에 맞는 기록이 없습니다.</div>`;
+    return;
+  }
+  const hl = (s)=>{ // 키워드 하이라이트
+    const esc = escapeHtml(s);
+    if(!kw) return esc;
+    try{ return esc.replace(new RegExp("("+kw.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"), "<mark>$1</mark>"); }
+    catch(e){ return esc; }
+  };
+  box.innerHTML = records.map(r=>`
+    <div class="result-row">
+      <span class="rtype ${r.type}">${r.label}</span>
+      <div class="rbody">
+        <div class="rtime">${fmtTime(r.ts)}</div>
+        <div>${hl(r.text)}</div>
+      </div>
+    </div>`).join("");
+}
+
+function resetSearch(){
+  ["f_from","f_to","f_kw"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  const ft = document.getElementById("f_type"); if(ft) ft.value="";
+  runSearch();
+}
+
+/* ============================================================================
+   11) 기능 6 — 감사추적 (Audit Trail) 패널
+   ----------------------------------------------------------------------------
+   audit()로 누적된 모든 행위를 시간순으로 표시. 행위 유형 필터 + JSON 내보내기.
+   ============================================================================ */
+function populateAuditFilter(){
+  const sel = document.getElementById("a_filter");
+  const prev = sel.value;
+  const actions = [...new Set(state.audit.map(a=>a.action))];
+  sel.innerHTML = `<option value="">전체 행위</option>` + actions.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("");
+  if(actions.includes(prev)) sel.value = prev;
+}
+
+function renderAudit(){
+  const filter = document.getElementById("a_filter").value;
+  // 현재 환자 + 환자 무관(앱시작/작성자변경 등) 로그를 함께 표시, 최신순
+  let logs = state.audit.filter(a=> !a.patient || a.patient===state.currentPatient);
+  if(filter) logs = logs.filter(a=>a.action===filter);
+  logs = logs.slice().reverse();
+
+  document.getElementById("auditCount").textContent = `${logs.length}건 표시`;
+
+  const box = document.getElementById("auditLog");
+  if(logs.length===0){
+    box.innerHTML = `<div class="empty">감사 로그가 없습니다.</div>`;
+    return;
+  }
+  box.innerHTML = logs.map(a=>`
+    <div class="audit-item">
+      <span class="a-ts">${fmtTime(a.ts)}</span>
+      <span class="a-act">${escapeHtml(a.action)}</span>
+      <span class="a-detail">${escapeHtml(a.detail||"")} <span class="a-who">— ${escapeHtml(a.who)}</span></span>
+    </div>`).join("");
+}
+
+function exportAudit(){
+  audit("감사로그 내보내기", "JSON 다운로드");
+  const data = JSON.stringify(state.audit, null, 2);
+  const blob = new Blob([data], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `audit_${state.currentPatient||"all"}_${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("감사 로그를 JSON으로 내보냈습니다.");
+}
+
+/* 감사 패널은 다른 기능이 데이터를 바꿀 때마다 새로고침되어야 자연스럽습니다.
+   각 저장 함수가 audit()를 호출하므로, 차트 화면 진입 시 + 주기적으로 갱신합니다. */
+setInterval(()=>{
+  if(document.getElementById("screen-chart").classList.contains("show")){
+    populateAuditFilter();
+    renderAudit();
+  }
+}, 4000);
+
+/* ============================================================================
+   12) 초기화 (앱 시작)
    ============================================================================ */
 function init(){
   renderAuthor();
   renderPatients();
   renderNandaOptions();
   renderNoteForm();
+  refreshIOTypeOptions();
+  document.getElementById("io_kind").addEventListener("change", refreshIOTypeOptions);
   audit("앱 시작", "시뮬레이터 로드");
 
   // 직전에 보던 환자가 있으면 바로 차트로 진입
